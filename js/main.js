@@ -12,8 +12,7 @@ lrp = {
 	Models: {},
 	Collections: {},
 	Views: {},
-	Router: null,
-	Dispatcher: null
+	Router: null
 }
 
 // Models
@@ -24,8 +23,7 @@ lrp.Models.Product = Backbone.Model.extend({
 		id: null,
 		name: '',
 		category: '',
-		price: 0.00,
-		selected: 0
+		price: 0.00
 	}
 });
 
@@ -43,10 +41,14 @@ lrp.Models.Line = Backbone.Model.extend({
 	initialize: function() {
 		this.on('change:price', this.calculate);
 		this.on('change:quantity', this.calculate);
+
+		return this;
 	},
 
 	calculate: function() {
 		this.set('extendedPrice', this.get('price')*this.get('quantity'));
+
+		return this;
 	}
 });
 
@@ -58,14 +60,14 @@ lrp.Models.Order = Backbone.Model.extend({
 	},
 
 	initialize: function() {
-		this.set({lines: new lrp.Collections.Line()})
+		this.set({lines: new lrp.Collections.Line()});
+
+		return this;
 	}
 });
 
 // Calculator Model
 lrp.Models.Calculator = Backbone.Model.extend({
-	idAttribute: 'order',
-
 	defaults: {
 		order: null,
 		subtotal: 0.00,
@@ -77,12 +79,14 @@ lrp.Models.Calculator = Backbone.Model.extend({
 	},
 
 	initialize: function() {
-		this.set({order: new lrp.Models.Order()});
-
 		_.bindAll(this, 'calculate');
+
+		this.set({order: new lrp.Models.Order()});
 
 		this.lines = this.get('order').get('lines');
 		this.lines.on('change:extendedPrice remove', this.calculate);
+
+		return this;
 	},
 
 	calculate: function() {
@@ -112,6 +116,8 @@ lrp.Models.Calculator = Backbone.Model.extend({
 			salesTaxAmount:salesTax,
 			total:total
 		});
+
+		return this;
 	}
 });
 
@@ -217,10 +223,11 @@ lrp.Views.Line = Backbone.View.extend({
 
 		this.listenTo(this.productSelector, 'change:selected', this.updatePrice);
 		this.listenTo(this.model, 'change:extendedPrice', this.refreshValues);
+
+		return this;
 	},
 
 	updatePrice: function(newProduct) {
-		console.log('updatePrice');
 		this.model.set('price', newProduct.get('price'));
 	},
 
@@ -238,8 +245,8 @@ lrp.Views.Line = Backbone.View.extend({
 	render: function() {
 		this.$el.html(this.template(this.model.toJSON()));
 
-		var productSelectorEl = this.productSelector.render().el;
-		this.$el.find('.line_product').append(productSelectorEl);
+		var productSelectorRendered = this.productSelector.render();
+		this.$el.find('.line_product').append(productSelectorRendered.el);
 
 		//can only assign after render due to templating
 		this.$price = this.$el.find('.line_price');
@@ -255,47 +262,6 @@ lrp.Views.Line = Backbone.View.extend({
 	}
 });
 
-// Calculator View
-lrp.Views.Calculator = Backbone.View.extend({
-	el: '#app',
-
-	initialize: function() {
-		//model containing attributes
-		this.model = new lrp.Models.Calculator();
-
-		//child views
-		this.orderView = new lrp.Views.Order({model: this.model.get('order')});
-
-		//elements
-		this.$orderContainer = $('.app_order');
-		this.$subtotal = $('.app_subtotal').find('.calculator_amount');
-		this.$fee = $('.app_fee').find('.calculator_amount');
-		this.$salesTax = $('.app_sales-tax').find('.calculator_amount');
-		this.$total = $('.app_total').find('.calculator_amount');
-
-		_.bindAll(this, 'refreshValues');
-
-		this.model.on('change:total', this.refreshValues);
-
-		this.render();
-	},
-
-	render: function() {
-		this.orderView.render();
-
-		this.$orderContainer.append(this.orderView.el);
-
-		return this;
-	},
-
-	refreshValues: function() {
-		this.$subtotal.html(this.model.get('subtotal').toFixed(2));
-		this.$fee.html(this.model.get('feeAmount').toFixed(2));
-		this.$salesTax.html(this.model.get('salesTaxAmount').toFixed(2));
-		this.$total.html(this.model.get('total').toFixed(2));
-	}
-});
-
 // Order View - holds each line
 lrp.Views.Order = Backbone.View.extend({
 	el: '.app_order',
@@ -307,7 +273,6 @@ lrp.Views.Order = Backbone.View.extend({
 	},
 
 	initialize: function(options) {
-		// this.model = new lrp.Models.Order();
 		this.options = options || {};
 		this.model = this.options.model;
 		this.lines = this.model.get('lines');
@@ -354,11 +319,50 @@ lrp.Views.Order = Backbone.View.extend({
 	}
 });
 
+// Calculator View
+lrp.Views.Calculator = Backbone.View.extend({
+	el: '#app',
+
+	initialize: function() {
+		this.model = new lrp.Models.Calculator();
+
+		//child views
+		this.orderView = new lrp.Views.Order({model: this.model.get('order')});
+
+		//elements
+		this.$orderContainer = $('.app_order');
+		this.$subtotal = $('.app_subtotal').find('.calculator_amount');
+		this.$fee = $('.app_fee').find('.calculator_amount');
+		this.$salesTax = $('.app_sales-tax').find('.calculator_amount');
+		this.$total = $('.app_total').find('.calculator_amount');
+
+		_.bindAll(this, 'refreshValues');
+
+		this.model.on('change:total', this.refreshValues);
+
+		this.render();
+
+		return this;
+	},
+
+	render: function() {
+		this.orderView.render();
+
+		this.$orderContainer.append(this.orderView.el);
+
+		return this;
+	},
+
+	refreshValues: function() {
+		this.$subtotal.html(this.model.get('subtotal').toFixed(2));
+		this.$fee.html(this.model.get('feeAmount').toFixed(2));
+		this.$salesTax.html(this.model.get('salesTaxAmount').toFixed(2));
+		this.$total.html(this.model.get('total').toFixed(2));
+	}
+});
 
 (function() {
 	'use strict';
-
-	lrp.Dispatcher = _.clone(Backbone.Events);
 
 	new lrp.Views.Calculator();
 })();
